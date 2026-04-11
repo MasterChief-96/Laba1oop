@@ -1,0 +1,244 @@
+using System;
+using System.Globalization;
+using System.Text;
+
+public class Matrix
+{
+    private readonly double[,] data;
+
+    public int Rows { get; }
+    public int Cols { get; }
+
+    // Конструктор
+    public Matrix(double[,] input)
+    {
+        if (input == null)
+            throw new ArgumentNullException(nameof(input), "Входной массив не может быть null");
+
+        Rows = input.GetLength(0);
+        Cols = input.GetLength(1);
+
+        data = new double[Rows, Cols];
+        Array.Copy(input, data, input.Length);
+    }
+
+    // Индексатор только для чтения
+    public double this[int i, int j] => data[i, j];
+
+    // Определитель
+    public double Determinant
+    {
+        get
+        {
+            if (Rows != Cols)
+                throw new InvalidOperationException("Определитель можно вычислить только для квадратной матрицы");
+            return CalculateDeterminant(data);
+        }
+    }
+
+    private double CalculateDeterminant(double[,] matrix)
+    {
+        int n = matrix.GetLength(0);
+        if (n == 1) return matrix[0, 0];
+        if (n == 2) return matrix[0, 0] * matrix[1, 1] - matrix[0, 1] * matrix[1, 0];
+
+        double det = 0;
+        for (int col = 0; col < n; col++)
+        {
+            double sign = (col % 2 == 0) ? 1 : -1;
+            det += sign * matrix[0, col] * CalculateDeterminant(GetMinor(matrix, 0, col));
+        }
+        return det;
+    }
+
+    private double[,] GetMinor(double[,] matrix, int excludeRow, int excludeCol)
+    {
+        int n = matrix.GetLength(0);
+        double[,] minor = new double[n - 1, n - 1];
+        int mRow = 0;
+        for (int i = 0; i < n; i++)
+        {
+            if (i == excludeRow) continue;
+            int mCol = 0;
+            for (int j = 0; j < n; j++)
+            {
+                if (j == excludeCol) continue;
+                minor[mRow, mCol] = matrix[i, j];
+                mCol++;
+            }
+            mRow++;
+        }
+        return minor;
+    }
+
+    // Транспонирование
+    public static Matrix operator ~(Matrix m)
+    {
+        if (m == null) throw new ArgumentNullException(nameof(m));
+        double[,] transposed = new double[m.Cols, m.Rows];
+        for (int i = 0; i < m.Rows; i++)
+            for (int j = 0; j < m.Cols; j++)
+                transposed[j, i] = m[i, j];
+        return new Matrix(transposed);
+    }
+
+    // Сложение
+    public static Matrix operator +(Matrix a, Matrix b)
+    {
+        if (a == null || b == null) throw new ArgumentNullException("Обе матрицы должны существовать");
+        if (a.Rows != b.Rows || a.Cols != b.Cols)
+            throw new InvalidOperationException("Размеры матриц должны совпадать для сложения");
+
+        double[,] sum = new double[a.Rows, a.Cols];
+        for (int i = 0; i < a.Rows; i++)
+            for (int j = 0; j < a.Cols; j++)
+                sum[i, j] = a[i, j] + b[i, j];
+        return new Matrix(sum);
+    }
+
+    // Умножение матриц
+    public static Matrix operator *(Matrix a, Matrix b)
+    {
+        if (a == null || b == null) throw new ArgumentNullException("Обе матрицы должны существовать");
+        if (a.Cols != b.Rows)
+            throw new InvalidOperationException("Число столбцов первой матрицы должно равняться числу строк второй");
+
+        double[,] product = new double[a.Rows, b.Cols];
+        for (int i = 0; i < a.Rows; i++)
+            for (int j = 0; j < b.Cols; j++)
+                for (int k = 0; k < a.Cols; k++)
+                    product[i, j] += a[i, k] * b[k, j];
+        return new Matrix(product);
+    }
+
+    // Обратная матрица
+    public Matrix Inverse()
+    {
+        double det = Determinant;
+        if (Math.Abs(det) < 1e-12)
+            throw new InvalidOperationException("Матрица вырождена, обратной не существует");
+
+        int n = Rows;
+        double[,] inverse = new double[n, n];
+        for (int i = 0; i < n; i++)
+        {
+            for (int j = 0; j < n; j++)
+            {
+                double[,] minor = GetMinor(data, i, j);
+                double cofactor = ((i + j) % 2 == 0 ? 1 : -1) * CalculateDeterminant(minor);
+                inverse[j, i] = cofactor / det;
+            }
+        }
+        return new Matrix(inverse);
+    }
+
+    // Деление (A / B = A * B^(-1))
+    public static Matrix operator /(Matrix a, Matrix b)
+    {
+        if (a == null || b == null) throw new ArgumentNullException("Обе матрицы должны существовать");
+        return a * b.Inverse();
+    }
+
+    // Сравнение по определителю
+    public static bool operator >(Matrix a, Matrix b) => a.Determinant > b.Determinant;
+    public static bool operator <(Matrix a, Matrix b) => a.Determinant < b.Determinant;
+    public static bool operator >=(Matrix a, Matrix b) => a.Determinant >= b.Determinant;
+    public static bool operator <=(Matrix a, Matrix b) => a.Determinant <= b.Determinant;
+    public static bool operator ==(Matrix a, Matrix b)
+    {
+        if (ReferenceEquals(a, b)) return true;
+        if (a is null || b is null) return false;
+        return a.Determinant == b.Determinant;
+    }
+    public static bool operator !=(Matrix a, Matrix b) => !(a == b);
+
+    public override bool Equals(object obj) => obj is Matrix m && this == m;
+    public override int GetHashCode() => Determinant.GetHashCode();
+
+    // ToString с принудительным использованием точки как разделителя
+    public override string ToString()
+    {
+        var sb = new StringBuilder();
+        for (int i = 0; i < Rows; i++)
+        {
+            sb.Append("| ");
+            for (int j = 0; j < Cols; j++)
+            {
+                // Используем инвариантную культуру для вывода с точкой
+                sb.Append(string.Format(CultureInfo.InvariantCulture, "{0,6:0.00} ", data[i, j]));
+            }
+            sb.AppendLine("|");
+        }
+        return sb.ToString();
+    }
+}
+
+
+public class Program
+{
+    public static void Main()
+    {
+        Console.OutputEncoding = Encoding.UTF8;
+        Console.WriteLine("=== ТЕСТИРОВАНИЕ КЛАССА MATRIX ===\n");
+
+        // 1. Создание и вывод матриц
+        var A = new Matrix(new double[,] { { 1, 2.5, 0 }, { 3.14, 4, 5.67 } });
+        var B = new Matrix(new double[,] { { 2, 0, 1 }, { -1, 3, 2 } });
+        Console.WriteLine("Матрица A:");
+        Console.WriteLine(A);
+        Console.WriteLine("Матрица B:");
+        Console.WriteLine(B);
+
+        // 2. Определитель (для квадратной матрицы)
+        var square = new Matrix(new double[,] { { 4, 3 }, { 3, 2 } });
+        Console.WriteLine("Квадратная матрица:");
+        Console.WriteLine(square);
+        Console.WriteLine($"Определитель = {square.Determinant:F2}\n");
+
+        // 3. Транспонирование
+        Console.WriteLine("Транспонированная матрица A (~A):");
+        Console.WriteLine(~A);
+
+        // 4. Сложение
+        var M1 = new Matrix(new double[,] { { 1, 2 }, { 3, 4 } });
+        var M2 = new Matrix(new double[,] { { 5, 6 }, { 7, 8 } });
+        Console.WriteLine("M1:");
+        Console.WriteLine(M1);
+        Console.WriteLine("M2:");
+        Console.WriteLine(M2);
+        Console.WriteLine("M1 + M2:");
+        Console.WriteLine(M1 + M2);
+
+        // 5. Умножение
+        var M3 = new Matrix(new double[,] { { 1, 2 }, { 3, 4 } });
+        var M4 = new Matrix(new double[,] { { 2, 0 }, { 1, 2 } });
+        Console.WriteLine("M3:");
+        Console.WriteLine(M3);
+        Console.WriteLine("M4:");
+        Console.WriteLine(M4);
+        Console.WriteLine("M3 * M4:");
+        Console.WriteLine(M3 * M4);
+
+        // 6. Обратная матрица и деление
+        var InvMat = new Matrix(new double[,] { { 4, 7 }, { 2, 6 } });
+        Console.WriteLine("Матрица InvMat:");
+        Console.WriteLine(InvMat);
+        Console.WriteLine("Обратная к InvMat:");
+        Console.WriteLine(InvMat.Inverse());
+        Console.WriteLine("InvMat / InvMat (должна получиться единичная матрица с погрешностью):");
+        Console.WriteLine(InvMat / InvMat);
+
+        // 7. Сравнение по определителю
+        var Det1 = new Matrix(new double[,] { { 1, 0 }, { 0, 1 } });   // det = 1
+        var Det2 = new Matrix(new double[,] { { 2, 0 }, { 0, 2 } });   // det = 4
+        Console.WriteLine($"Det1: det = {Det1.Determinant}");
+        Console.WriteLine($"Det2: det = {Det2.Determinant}");
+        Console.WriteLine($"Det1 > Det2: {Det1 > Det2}");
+        Console.WriteLine($"Det1 < Det2: {Det1 < Det2}");
+        Console.WriteLine($"Det1 == Det2: {Det1 == Det2}");
+        Console.WriteLine($"Det1 != Det2: {Det1 != Det2}");
+
+        Console.WriteLine("\nТестирование завершено.");
+        Console.ReadKey();
+    }
+}
