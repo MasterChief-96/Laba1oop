@@ -1,0 +1,67 @@
+using System;
+using System.Collections.Generic;
+
+class Node
+{
+    // Значение узла
+    public string Value { get; set; }
+
+    // Список потомков
+    public List<Node> Children { get; set; }
+
+    public Node(string value)
+    {
+        Value = value;
+        Children = new List<Node>();
+    }
+
+    // Рекурсивный вывод дерева
+    public void PrintTree(int level = 0)
+    {
+        Console.WriteLine(new string(' ', level * 4) + Value);
+
+        if (Children.Count == 0)
+        {
+            return;
+        }
+
+        for (int i = 0; i < Children.Count; i++)
+        {
+            Children[i].PrintTree(level + 1);
+        }
+    }
+}
+
+class Program
+{
+    static void Main()
+    {
+        // Конфигурация дерева задаётся здесь
+
+        Node root = new Node("A");
+
+        Node b = new Node("B");
+        Node c = new Node("C");
+        Node d = new Node("D");
+        Node e = new Node("E");
+        Node f = new Node("F");
+        Node g = new Node("G");
+        Node h = new Node("H");
+        Node i = new Node("I");
+
+        root.Children.Add(b);
+        root.Children.Add(c);
+
+        b.Children.Add(d);
+        b.Children.Add(e);
+
+        c.Children.Add(f);
+        c.Children.Add(g);
+
+        e.Children.Add(h);
+        e.Children.Add(i);
+
+        Console.WriteLine("Дерево:");
+        root.PrintTree();
+    }
+}
