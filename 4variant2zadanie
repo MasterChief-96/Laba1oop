@@ -1,0 +1,90 @@
+using System;
+
+class InventoryService
+{
+    public bool CheckStock(string product)
+    {
+        Console.WriteLine("Проверка наличия товара на складе: " + product);
+        return true;
+    }
+
+    public void ReserveProduct(string product)
+    {
+        Console.WriteLine("Товар зарезервирован: " + product);
+    }
+}
+
+class PaymentService
+{
+    public void ProcessPayment(string product)
+    {
+        Console.WriteLine("Платёж оформлен: " + product);
+    }
+}
+
+class ShippingService
+{
+    public void CreateShippingLabel(string product)
+    {
+        Console.WriteLine("Этикетка доставки создана для товара: " + product);
+    }
+
+    public void PrintShippingLabel()
+    {
+        Console.WriteLine("Этикетка доставки распечатана");
+    }
+}
+
+class NotificationService
+{
+    public void SendNotification(string product)
+    {
+        Console.WriteLine("Покупателю отправлено уведомление о заказе: " + product);
+    }
+}
+
+class OrderFacade
+{
+    private InventoryService inventoryService;
+    private PaymentService paymentService;
+    private ShippingService shippingService;
+    private NotificationService notificationService;
+
+    public OrderFacade()
+    {
+        inventoryService = new InventoryService();
+        paymentService = new PaymentService();
+        shippingService = new ShippingService();
+        notificationService = new NotificationService();
+    }
+
+    public void PlaceOrder(string product)
+    {
+        Console.WriteLine("=== Начало оформления заказа ===");
+
+        bool inStock = inventoryService.CheckStock(product);
+
+        if (!inStock)
+        {
+            Console.WriteLine("Оформление невозможно: товара нет на складе");
+            return;
+        }
+
+        inventoryService.ReserveProduct(product);
+        paymentService.ProcessPayment(product);
+        shippingService.CreateShippingLabel(product);
+        shippingService.PrintShippingLabel();
+        notificationService.SendNotification(product);
+
+        Console.WriteLine("=== Заказ успешно оформлен ===");
+    }
+}
+
+class Client
+{
+    static void Main()
+    {
+        OrderFacade facade = new OrderFacade();
+        facade.PlaceOrder("Ноутбук");
+    }
+}
